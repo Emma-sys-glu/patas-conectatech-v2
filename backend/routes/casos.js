@@ -174,4 +174,37 @@ router.get('/:id/ayudas', async (req, res) => {
   }
 })
 
+// GET /api/casos/:id/detalle-ayudas — tipos de ayuda cubiertos en un caso
+router.get('/:id/detalle-ayudas', async (req, res) => {
+  const { id } = req.params
+  try {
+    const resultado = await pool.query(
+      `SELECT a.tipo_ayuda, u.nombre as nombre_voluntario
+       FROM ayudas a
+       JOIN usuarios u ON a.id_voluntario = u.id
+       WHERE a.id_caso = $1`,
+      [id]
+    )
+    res.json(resultado.rows)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ mensaje: 'Error al obtener detalle de ayudas' })
+  }
+})
+
+// PATCH /api/casos/:id/resolver — marcar caso como resuelto
+router.patch('/:id/resolver', async (req, res) => {
+  const { id } = req.params
+  try {
+    await pool.query(
+      `UPDATE casos SET estado = 'resuelto' WHERE id = $1`,
+      [id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ mensaje: 'Error al resolver el caso' })
+  }
+})
+
 module.exports = router

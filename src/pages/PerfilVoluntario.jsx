@@ -12,7 +12,7 @@ const ESPECIALIDADES = [
 ]
 
 const DISPONIBILIDAD = [
-  { value: 'mananas',   label: 'Mananas' },
+  { value: 'mananas',   label: 'Mañanas' },
   { value: 'tardes',    label: 'Tardes' },
   { value: 'noches',    label: 'Noches' },
   { value: 'fines',     label: 'Fines de semana' },
