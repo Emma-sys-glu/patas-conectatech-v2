@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import DashboardSolicitante from './pages/DashboardSolicitante'
 import DashboardVoluntario from './pages/DashboardVoluntario'
 import NuevoCaso from './pages/NuevoCaso'
+import PerfilVoluntario from './pages/PerfilVoluntario'
 
 function RutaProtegida({ children, rolRequerido }) {
   const { usuario } = useAuth()
@@ -37,6 +38,11 @@ export default function App() {
             <Route path="/nuevo-caso" element={
               <RutaProtegida rolRequerido="solicitante">
                 <NuevoCaso />
+              </RutaProtegida>
+            } />
+            <Route path="/perfil/voluntario" element={
+              <RutaProtegida rolRequerido="voluntario">
+                <PerfilVoluntario />
               </RutaProtegida>
             } />
           </Routes>

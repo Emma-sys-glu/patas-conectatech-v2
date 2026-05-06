@@ -3,22 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 
 const TIPOS_APOYO = [
-  { value: '',                    label: 'Todos los casos' },
-  { value: 'transporte',          label: 'Transporte' },
-  { value: 'croquetas',           label: 'Croquetas / Insumos' },
-  { value: 'adopcion',            label: 'Adopcion' },
-  { value: 'hogar_temporal',      label: 'Hogar Temporal' },
-  { value: 'donacion',            label: 'Donacion' },
-  { value: 'atencion_veterinaria',label: 'Atencion Veterinaria' },
-  { value: 'rescate',             label: 'Rescate' },
+  { value: '', label: 'Todos los casos' },
+  { value: 'transporte', label: 'Transporte' },
+  { value: 'croquetas', label: 'Croquetas / Insumos' },
+  { value: 'adopcion', label: 'Adopcion' },
+  { value: 'hogar_temporal', label: 'Hogar Temporal' },
+  { value: 'donacion', label: 'Donacion' },
+  { value: 'atencion_veterinaria', label: 'Atencion Veterinaria' },
+  { value: 'rescate', label: 'Rescate' },
 ]
 
 const BOTONES_AYUDA = [
-  { value: 'donacion',            label: '💰 Puedo Donar' },
-  { value: 'transporte',          label: '🚗 Ofrezco Transporte' },
-  { value: 'hogar_temporal',      label: '🏠 Puedo Cuidar Temporalmente' },
-  { value: 'croquetas',           label: '🥣 Ofrezco Alimento' },
-  { value: 'atencion_veterinaria',label: '🩺 Ofrezco Atencion Veterinaria' },
+  { value: 'donacion', label: '💰 Puedo Donar' },
+  { value: 'transporte', label: '🚗 Ofrezco Transporte' },
+  { value: 'hogar_temporal', label: '🏠 Puedo Cuidar Temporalmente' },
+  { value: 'croquetas', label: '🥣 Ofrezco Alimento' },
+  { value: 'atencion_veterinaria', label: '🩺 Ofrezco Atencion Veterinaria' },
 ]
 
 function badgeUrgencia(puntaje) {
@@ -42,25 +42,32 @@ export default function DashboardVoluntario() {
   const [casos, setCasos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [filtro, setFiltro] = useState('')
-  // Guardar el estado de ayuda por caso: { [id_caso]: { total, ya_ayudo } }
   const [ayudas, setAyudas] = useState({})
   const [registrando, setRegistrando] = useState({})
+  const [perfil, setPerfil] = useState(null)
 
   useEffect(() => {
-    async function cargarCasos() {
+    async function cargarTodo() {
       try {
+        // Cargar casos
         const res = await fetch('http://localhost:3000/api/casos')
         const data = await res.json()
         setCasos(data)
-        // Cargar estado de ayuda del voluntario para cada caso
+
+        // Cargar ayudas del voluntario para cada caso
         await cargarAyudas(data)
+
+        // Cargar perfil del voluntario
+        const resPerfil = await fetch(`http://localhost:3000/api/voluntarios/perfil/${usuario?.id}`)
+        const dataPerfil = await resPerfil.json()
+        setPerfil(dataPerfil)
       } catch (err) {
         console.error(err)
       } finally {
         setCargando(false)
       }
     }
-    cargarCasos()
+    cargarTodo()
   }, [])
 
   async function cargarAyudas(listaCasos) {
@@ -104,10 +111,9 @@ export default function DashboardVoluntario() {
     }
   }
 
-  const interesesVoluntario = TIPOS_APOYO.slice(1).map(t => t.value)
-
   function esCompatible(caso) {
-    return caso.tipo_apoyo.some(t => interesesVoluntario.includes(t))
+    if (!perfil || !perfil.actividades) return false
+    return caso.tipo_apoyo.some(t => perfil.actividades.includes(t))
   }
 
   const casosFiltrados = casos
@@ -116,15 +122,34 @@ export default function DashboardVoluntario() {
 
   return (
     <div style={{ padding: '40px', maxWidth: '780px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Hola, {usuario?.nombre} 👋</h2>
-        <button onClick={() => { logout(); navigate('/') }}>Cerrar sesion</button>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} 👋</h2>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => navigate('/perfil/voluntario')}
+            style={{
+              padding: '8px 16px', cursor: 'pointer',
+              background: '#7c3aed', color: '#fff',
+              border: 'none', borderRadius: '6px'
+            }}>
+            Mi perfil
+          </button>
+          <button onClick={() => { logout(); navigate('/') }}>
+            Cerrar sesion
+          </button>
+        </div>
       </div>
+
       <p style={{ color: '#555' }}>Casos activos ordenados por urgencia</p>
 
+      {/* Filtro */}
       <div style={{ marginTop: '16px', marginBottom: '24px' }}>
         <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filtrar por tipo de apoyo:</label>
-        <select value={filtro} onChange={e => setFiltro(e.target.value)}
+        <select
+          value={filtro}
+          onChange={e => setFiltro(e.target.value)}
           style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
           {TIPOS_APOYO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
@@ -138,6 +163,7 @@ export default function DashboardVoluntario() {
         </p>
       )}
 
+      {/* Tarjetas de casos */}
       {casosFiltrados.map(caso => {
         const badge = badgeUrgencia(caso.puntaje_urgencia)
         const compatible = esCompatible(caso)
@@ -151,17 +177,19 @@ export default function DashboardVoluntario() {
             borderRadius: '10px', padding: '20px', marginBottom: '20px',
             background: '#fff', position: 'relative'
           }}>
+
             {compatible && (
               <span style={{
                 position: 'absolute', top: '12px', right: '12px',
                 background: '#ede9fe', color: '#7c3aed',
-                padding: '2px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'
+                padding: '2px 10px', borderRadius: '12px',
+                fontSize: '12px', fontWeight: 'bold'
               }}>
                 ⭐ Compatible
               </span>
             )}
 
-            {/* Info del caso */}
+            {/* Info principal */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <strong style={{ fontSize: '18px', textTransform: 'capitalize' }}>{caso.especie}</strong>
               <span style={{
@@ -233,6 +261,7 @@ export default function DashboardVoluntario() {
                 </div>
               )}
             </div>
+
           </div>
         )
       })}
