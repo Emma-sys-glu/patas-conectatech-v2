@@ -1,17 +1,24 @@
 import { useAuth } from '../context/AuthContext'
-import { useCasos } from '../context/CasosContext'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const TIPOS_APOYO = [
-  { value: '', label: 'Todos los casos' },
-  { value: 'transporte', label: 'Transporte' },
-  { value: 'croquetas', label: 'Croquetas / Insumos' },
-  { value: 'adopcion', label: 'Adopción' },
-  { value: 'hogar_temporal', label: 'Hogar Temporal' },
-  { value: 'donacion', label: 'Donación' },
-  { value: 'atencion_veterinaria', label: 'Atención Veterinaria' },
-  { value: 'rescate', label: 'Rescate' },
+  { value: '',                    label: 'Todos los casos' },
+  { value: 'transporte',          label: 'Transporte' },
+  { value: 'croquetas',           label: 'Croquetas / Insumos' },
+  { value: 'adopcion',            label: 'Adopcion' },
+  { value: 'hogar_temporal',      label: 'Hogar Temporal' },
+  { value: 'donacion',            label: 'Donacion' },
+  { value: 'atencion_veterinaria',label: 'Atencion Veterinaria' },
+  { value: 'rescate',             label: 'Rescate' },
+]
+
+const BOTONES_AYUDA = [
+  { value: 'donacion',            label: '💰 Puedo Donar' },
+  { value: 'transporte',          label: '🚗 Ofrezco Transporte' },
+  { value: 'hogar_temporal',      label: '🏠 Puedo Cuidar Temporalmente' },
+  { value: 'croquetas',           label: '🥣 Ofrezco Alimento' },
+  { value: 'atencion_veterinaria',label: '🩺 Ofrezco Atencion Veterinaria' },
 ]
 
 function badgeUrgencia(puntaje) {
@@ -26,75 +33,124 @@ function tiempoTranscurrido(fechaISO) {
   if (horas < 1) return 'Hace menos de 1 hora'
   if (horas < 24) return `Hace ${horas} hora${horas > 1 ? 's' : ''}`
   const dias = Math.floor(horas / 24)
-  return `Hace ${dias} día${dias > 1 ? 's' : ''}`
+  return `Hace ${dias} dia${dias > 1 ? 's' : ''}`
 }
 
 export default function DashboardVoluntario() {
   const { usuario, logout } = useAuth()
-  const { casos } = useCasos()
   const navigate = useNavigate()
+  const [casos, setCasos] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [filtro, setFiltro] = useState('')
+  // Guardar el estado de ayuda por caso: { [id_caso]: { total, ya_ayudo } }
+  const [ayudas, setAyudas] = useState({})
+  const [registrando, setRegistrando] = useState({})
 
-  // Filtrar y ordenar por urgencia de mayor a menor
-  const casosFiltrados = casos
-    .filter(c => c.estado === 'activo')
-    .filter(c => filtro === '' || c.tipoApoyo.includes(filtro))
-    .sort((a, b) => b.puntajeUrgencia - a.puntajeUrgencia)
+  useEffect(() => {
+    async function cargarCasos() {
+      try {
+        const res = await fetch('http://localhost:3000/api/casos')
+        const data = await res.json()
+        setCasos(data)
+        // Cargar estado de ayuda del voluntario para cada caso
+        await cargarAyudas(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setCargando(false)
+      }
+    }
+    cargarCasos()
+  }, [])
 
-  // Match: tipos de apoyo del voluntario — por ahora usamos todos como interés
-  // Cuando agregues perfil de voluntario, aquí comparas con usuario.intereses
-  const interesesVoluntario = usuario?.intereses || TIPOS_APOYO.slice(1).map(t => t.value)
-
-  function esCompatible(caso) {
-    return caso.tipoApoyo.some(t => interesesVoluntario.includes(t))
+  async function cargarAyudas(listaCasos) {
+    const estado = {}
+    await Promise.all(listaCasos.map(async (caso) => {
+      try {
+        const res = await fetch(
+          `http://localhost:3000/api/casos/${caso.id}/ayudas?id_voluntario=${usuario?.id}`
+        )
+        const data = await res.json()
+        estado[caso.id] = data
+      } catch {
+        estado[caso.id] = { total_ayudas: 0, ya_ayudo: null }
+      }
+    }))
+    setAyudas(estado)
   }
 
-  return (
-    <div style={{ padding: '40px', maxWidth: '750px', margin: '0 auto' }}>
+  async function registrarAyuda(idCaso, tipoAyuda) {
+    setRegistrando(prev => ({ ...prev, [idCaso]: true }))
+    try {
+      const res = await fetch(`http://localhost:3000/api/casos/${idCaso}/ayuda`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_voluntario: usuario?.id,
+          tipo_ayuda: tipoAyuda
+        })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setAyudas(prev => ({
+          ...prev,
+          [idCaso]: { total_ayudas: data.total_ayudas, ya_ayudo: tipoAyuda }
+        }))
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setRegistrando(prev => ({ ...prev, [idCaso]: false }))
+    }
+  }
 
-      {/* Header */}
+  const interesesVoluntario = TIPOS_APOYO.slice(1).map(t => t.value)
+
+  function esCompatible(caso) {
+    return caso.tipo_apoyo.some(t => interesesVoluntario.includes(t))
+  }
+
+  const casosFiltrados = casos
+    .filter(c => filtro === '' || c.tipo_apoyo.includes(filtro))
+    .sort((a, b) => b.puntaje_urgencia - a.puntaje_urgencia)
+
+  return (
+    <div style={{ padding: '40px', maxWidth: '780px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Hola, {usuario?.nombre} 👋</h2>
-        <button onClick={() => { logout(); navigate('/') }}>Cerrar sesión</button>
+        <button onClick={() => { logout(); navigate('/') }}>Cerrar sesion</button>
       </div>
       <p style={{ color: '#555' }}>Casos activos ordenados por urgencia</p>
 
-      {/* Filtro */}
       <div style={{ marginTop: '16px', marginBottom: '24px' }}>
         <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filtrar por tipo de apoyo:</label>
-        <select
-          value={filtro}
-          onChange={e => setFiltro(e.target.value)}
-          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-        >
-          {TIPOS_APOYO.map(t => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
+        <select value={filtro} onChange={e => setFiltro(e.target.value)}
+          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
+          {TIPOS_APOYO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
 
-      {/* Lista de casos */}
-      {casosFiltrados.length === 0 && (
+      {cargando && <p style={{ color: '#888' }}>Cargando casos...</p>}
+
+      {!cargando && casosFiltrados.length === 0 && (
         <p style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>
           No hay casos activos{filtro ? ' con ese tipo de apoyo' : ''}.
         </p>
       )}
 
       {casosFiltrados.map(caso => {
-        const badge = badgeUrgencia(caso.puntajeUrgencia)
+        const badge = badgeUrgencia(caso.puntaje_urgencia)
         const compatible = esCompatible(caso)
+        const ayudaCaso = ayudas[caso.id] || { total_ayudas: 0, ya_ayudo: null }
+        const yaRegistro = ayudaCaso.ya_ayudo
+        const estaRegistrando = registrando[caso.id]
 
         return (
           <div key={caso.id} style={{
             border: `2px solid ${compatible ? '#a78bfa' : '#e5e7eb'}`,
-            borderRadius: '10px',
-            padding: '20px',
-            marginBottom: '16px',
-            background: '#fff',
-            position: 'relative'
+            borderRadius: '10px', padding: '20px', marginBottom: '20px',
+            background: '#fff', position: 'relative'
           }}>
-
-            {/* Badge compatible */}
             {compatible && (
               <span style={{
                 position: 'absolute', top: '12px', right: '12px',
@@ -105,44 +161,31 @@ export default function DashboardVoluntario() {
               </span>
             )}
 
-            {/* Fila superior */}
+            {/* Info del caso */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: '18px', textTransform: 'capitalize' }}>
-                {caso.especie}
-              </strong>
-
-              {/* Badge condición */}
+              <strong style={{ fontSize: '18px', textTransform: 'capitalize' }}>{caso.especie}</strong>
               <span style={{
                 padding: '2px 10px', borderRadius: '12px', fontSize: '12px',
                 background: caso.condicion === 'critica' ? '#fee2e2' : caso.condicion === 'regular' ? '#fef3c7' : '#dcfce7',
                 color: caso.condicion === 'critica' ? '#dc2626' : caso.condicion === 'regular' ? '#d97706' : '#16a34a'
-              }}>
-                {caso.condicion}
-              </span>
-
-              {/* Badge urgencia */}
+              }}>{caso.condicion}</span>
               <span style={{
                 padding: '2px 10px', borderRadius: '12px', fontSize: '13px',
                 fontWeight: 'bold', background: badge.fondo, color: badge.color
-              }}>
-                {badge.texto}
-              </span>
+              }}>{badge.texto}</span>
             </div>
 
-            {/* Info */}
-            <p style={{ margin: '10px 0 4px', color: '#374151' }}>
-              📍 {caso.ubicacion}
+            <p style={{ margin: '10px 0 4px', color: '#374151' }}>📍 {caso.ubicacion}</p>
+            <p style={{ margin: '4px 0', color: '#6b7280', fontSize: '14px' }}>
+              🕐 {tiempoTranscurrido(caso.fecha_reporte)}
             </p>
             <p style={{ margin: '4px 0', color: '#6b7280', fontSize: '14px' }}>
-              🕐 {tiempoTranscurrido(caso.fechaReporte)}
-            </p>
-            <p style={{ margin: '4px 0', color: '#6b7280', fontSize: '14px' }}>
-              👥 {caso.voluntariosAyudando.length} voluntario{caso.voluntariosAyudando.length !== 1 ? 's' : ''} ayudando
+              👥 {ayudaCaso.total_ayudas} voluntario{ayudaCaso.total_ayudas !== 1 ? 's' : ''} ayudando
             </p>
 
-            {/* Tipos de apoyo */}
+            {/* Tipos de apoyo requerido */}
             <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {caso.tipoApoyo.map(t => (
+              {caso.tipo_apoyo.map(t => (
                 <span key={t} style={{
                   padding: '2px 8px', borderRadius: '12px', fontSize: '12px',
                   background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb'
@@ -152,11 +195,44 @@ export default function DashboardVoluntario() {
               ))}
             </div>
 
-            {/* Descripción */}
-            <p style={{ margin: '10px 0 0', fontSize: '14px', color: '#4b5563' }}>
-              {caso.motivo}
-            </p>
+            <p style={{ margin: '10px 0 0', fontSize: '14px', color: '#4b5563' }}>{caso.motivo}</p>
 
+            {/* Botones de ayuda */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #e5e7eb', paddingTop: '14px' }}>
+              {yaRegistro ? (
+                <div style={{
+                  background: '#dcfce7', color: '#16a34a', padding: '10px 16px',
+                  borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center'
+                }}>
+                  ✅ Ayuda registrada: {BOTONES_AYUDA.find(b => b.value === yaRegistro)?.label || yaRegistro}
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#6b7280', fontWeight: 'bold' }}>
+                    ¿Como puedes ayudar?
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {BOTONES_AYUDA.map(btn => (
+                      <button
+                        key={btn.value}
+                        disabled={estaRegistrando}
+                        onClick={() => registrarAyuda(caso.id, btn.value)}
+                        style={{
+                          padding: '8px 14px', fontSize: '13px', cursor: 'pointer',
+                          border: '1px solid #d1d5db', borderRadius: '8px',
+                          background: estaRegistrando ? '#f3f4f6' : '#fff',
+                          color: '#374151', transition: 'all 0.15s'
+                        }}
+                        onMouseOver={e => { if (!estaRegistrando) e.target.style.background = '#f3f4f6' }}
+                        onMouseOut={e => { if (!estaRegistrando) e.target.style.background = '#fff' }}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )
       })}
