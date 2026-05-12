@@ -192,13 +192,23 @@ router.get('/:id/detalle-ayudas', async (req, res) => {
   }
 })
 
-// PATCH /api/casos/:id/resolver — marcar caso como resuelto
+// PATCH /api/casos/:id/resolver
 router.patch('/:id/resolver', async (req, res) => {
   const { id } = req.params
   try {
-    await pool.query(
-      `UPDATE casos SET estado = 'resuelto' WHERE id = $1`,
+    // Verificar que haya al menos un voluntario ayudando
+    const ayudas = await pool.query(
+      'SELECT COUNT(*) as total FROM ayudas WHERE id_caso = $1',
       [id]
+    )
+    if (parseInt(ayudas.rows[0].total) === 0) {
+      return res.status(400).json({ 
+        mensaje: 'No puedes marcar este caso como resuelto mientras no haya al menos un voluntario ayudando.' 
+      })
+    }
+    await pool.query(
+      'UPDATE casos SET estado = $1 WHERE id = $2',
+      ['resuelto', id]
     )
     res.json({ ok: true })
   } catch (err) {

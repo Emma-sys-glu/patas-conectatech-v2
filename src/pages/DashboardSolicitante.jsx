@@ -3,17 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 
 const TIPOS_APOYO = [
-  { value: 'transporte',           label: 'Transporte' },
-  { value: 'croquetas',            label: 'Croquetas / Insumos' },
-  { value: 'adopcion',             label: 'Adopcion' },
-  { value: 'hogar_temporal',       label: 'Hogar Temporal' },
-  { value: 'donacion',             label: 'Donacion' },
+  { value: 'transporte', label: 'Transporte' },
+  { value: 'croquetas', label: 'Croquetas / Insumos' },
+  { value: 'adopcion', label: 'Adopcion' },
+  { value: 'hogar_temporal', label: 'Hogar Temporal' },
+  { value: 'donacion', label: 'Donacion' },
   { value: 'atencion_veterinaria', label: 'Atencion Veterinaria' },
-  { value: 'rescate',              label: 'Rescate' },
+  { value: 'rescate', label: 'Rescate' },
 ]
 
 function estadoColor(estado) {
-  if (estado === 'resuelto')   return { bg: '#dcfce7', color: '#16a34a', texto: '✅ Resuelto' }
+  if (estado === 'resuelto') return { bg: '#dcfce7', color: '#16a34a', texto: '✅ Resuelto' }
   if (estado === 'en atencion') return { bg: '#dbeafe', color: '#2563eb', texto: '🔵 En atencion' }
   return { bg: '#f3f4f6', color: '#6b7280', texto: '⏳ Activo' }
 }
@@ -64,10 +64,13 @@ export default function DashboardSolicitante() {
       const res = await fetch(`http://localhost:3000/api/casos/${idCaso}/resolver`, {
         method: 'PATCH'
       })
-      if (res.ok) {
+      const data = await res.json()
+      if (data.ok) {
         setCasos(prev =>
           prev.map(c => c.id === idCaso ? { ...c, estado: 'resuelto' } : c)
         )
+      } else {
+        alert(data.mensaje)
       }
     } catch (err) {
       console.error(err)
@@ -77,7 +80,7 @@ export default function DashboardSolicitante() {
   }
 
   // Separar casos activos/en atencion de resueltos
-  const casosActivos   = casos.filter(c => c.estado !== 'resuelto')
+  const casosActivos = casos.filter(c => c.estado !== 'resuelto')
   const casosResueltos = casos.filter(c => c.estado === 'resuelto')
 
   function renderTarjeta(caso) {
@@ -191,7 +194,16 @@ export default function DashboardSolicitante() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} 👋</h2>
-        <button onClick={() => { logout(); navigate('/') }}>Cerrar sesion</button>
+        <button onClick={() => { logout(); navigate('/') }}
+          style={{
+            marginTop: '16px', marginBottom: '32px',
+            padding: '12px 24px', fontSize: '15px',
+            cursor: 'pointer', background: '#303852',
+            color: '#fff', border: 'none', borderRadius: '8px',
+            fontWeight: 'bold'
+          }}
+        >
+          Cerrar sesión</button>
       </div>
 
       <button
@@ -199,7 +211,7 @@ export default function DashboardSolicitante() {
         style={{
           marginTop: '16px', marginBottom: '32px',
           padding: '12px 24px', fontSize: '15px',
-          cursor: 'pointer', background: '#2563eb',
+          cursor: 'pointer', background: '#303852',
           color: '#fff', border: 'none', borderRadius: '8px',
           fontWeight: 'bold'
         }}
