@@ -193,7 +193,7 @@ export default function DashboardSolicitante() {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} 👋</h2>
+        <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} </h2>
         <button onClick={() => { logout(); navigate('/') }}
           style={{
             marginTop: '16px', marginBottom: '32px',

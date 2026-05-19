@@ -3,21 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 
 const TIPOS_APOYO = [
-  { value: '',                     label: 'Todos los casos' },
-  { value: 'transporte',           label: 'Transporte' },
-  { value: 'croquetas',            label: 'Croquetas / Insumos' },
-  { value: 'adopcion',             label: 'Adopcion' },
-  { value: 'hogar_temporal',       label: 'Hogar Temporal' },
-  { value: 'donacion',             label: 'Donacion' },
+  { value: '', label: 'Todos los casos' },
+  { value: 'transporte', label: 'Transporte' },
+  { value: 'croquetas', label: 'Croquetas / Insumos' },
+  { value: 'adopcion', label: 'Adopcion' },
+  { value: 'hogar_temporal', label: 'Hogar Temporal' },
+  { value: 'donacion', label: 'Donacion' },
   { value: 'atencion_veterinaria', label: 'Atencion Veterinaria' },
-  { value: 'rescate',              label: 'Rescate' },
+  { value: 'rescate', label: 'Rescate' },
 ]
 
 const BOTONES_AYUDA = [
-  { value: 'donacion',             label: '💰 Puedo Donar' },
-  { value: 'transporte',           label: '🚗 Ofrezco Transporte' },
-  { value: 'hogar_temporal',       label: '🏠 Puedo Cuidar Temporalmente' },
-  { value: 'croquetas',            label: '🥣 Ofrezco Alimento' },
+  { value: 'donacion', label: '💰 Puedo Donar' },
+  { value: 'transporte', label: '🚗 Ofrezco Transporte' },
+  { value: 'hogar_temporal', label: '🏠 Puedo Cuidar Temporalmente' },
+  { value: 'croquetas', label: '🥣 Ofrezco Alimento' },
   { value: 'atencion_veterinaria', label: '🩺 Ofrezco Atencion Veterinaria' },
 ]
 
@@ -40,12 +40,12 @@ export default function DashboardVoluntario() {
   const { usuario, logout } = useAuth()
   const navigate = useNavigate()
 
-  const [perfil, setPerfil]           = useState(null)
+  const [perfil, setPerfil] = useState(null)
   const [cargandoPerfil, setCargandoPerfil] = useState(true)
-  const [casos, setCasos]             = useState([])
+  const [casos, setCasos] = useState([])
   const [cargandoCasos, setCargandoCasos] = useState(false)
-  const [filtro, setFiltro]           = useState('')
-  const [ayudas, setAyudas]           = useState({})
+  const [filtro, setFiltro] = useState('')
+  const [ayudas, setAyudas] = useState({})
   const [registrando, setRegistrando] = useState({})
 
   // 1. Cargar perfil al montar
@@ -129,14 +129,14 @@ export default function DashboardVoluntario() {
     .sort((a, b) => b.puntaje_urgencia - a.puntaje_urgencia)
 
   const casosPrioritarios = casosFiltrados.filter(c => esPrioritario(c))
-  const casosOtros        = casosFiltrados.filter(c => !esPrioritario(c))
+  const casosOtros = casosFiltrados.filter(c => !esPrioritario(c))
 
   // ── Tarjeta de caso ────────────────────────────────────────
   function TarjetaCaso({ caso, prioritario }) {
-    const badge         = badgeUrgencia(caso.puntaje_urgencia)
-    const ayudaCaso     = ayudas[caso.id] || { total_ayudas: 0, ya_ayudo: null }
-    const yaRegistro    = ayudaCaso.ya_ayudo
-    const estaReg       = registrando[caso.id]
+    const badge = badgeUrgencia(caso.puntaje_urgencia)
+    const ayudaCaso = ayudas[caso.id] || { total_ayudas: 0, ya_ayudo: null }
+    const yaRegistro = ayudaCaso.ya_ayudo
+    const estaReg = registrando[caso.id]
 
     return (
       <div style={{
@@ -153,6 +153,19 @@ export default function DashboardVoluntario() {
           }}>
             ⭐ COMPATIBLE
           </span>
+        )}
+
+        {/* Foto del animal */}
+        {caso.foto && (
+          <img
+            src={`http://localhost:3000/uploads/${caso.foto}`}
+            alt={caso.especie}
+            style={{
+              width: '100%', maxHeight: '200px',
+              objectFit: 'cover', borderRadius: '8px',
+              marginBottom: '14px', border: '1px solid #e5e7eb', marginTop: '17px'
+            }}
+          />
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -247,7 +260,7 @@ export default function DashboardVoluntario() {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} 👋</h2>
+        <h2 style={{ margin: 0 }}>Hola, {usuario?.nombre} </h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             onClick={() => navigate('/perfil/voluntario')}
